@@ -1,13 +1,12 @@
 {
   "name": "yt-downloader-api",
   "version": "1.0.0",
-  "description": "Custom YouTube API for search, info, video & audio downloads",
+  "description": "Lightweight YouTube API",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --optimize_for_size --max-old-space-size=400 server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "youtube-po-token-generator": "^0.3.0"
+    "express": "^4.19.2"
   }
 }
