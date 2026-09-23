@@ -2,12 +2,11 @@ const express = require('express');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { generate } = require('youtube-po-token-generator');
 
 const app = express();
 app.use(express.json());
 
-// Environment Variable-ൽ നിന്നുള്ള Netscape Cookies temporary location-ലേക്ക് ലോഡ് ചെയ്യുന്നു
+// Netscape Cookies Setup
 const COOKIES_PATH = path.join('/tmp', 'cookies.txt');
 
 function setupCookies() {
@@ -17,33 +16,19 @@ function setupCookies() {
 }
 setupCookies();
 
-// Dynamic PO Token Auto Generator
-async function getPoToken() {
-    try {
-        const result = await generate();
-        return result.poToken;
-    } catch (err) {
-        console.error("PO Token Generation Error:", err);
-        return null;
-    }
-}
+// Dynamic Player Clients to bypass PO Token requirement cleanly
+const EXTRACTOR_ARGS = 'youtube:player_client=mweb,web';
 
 // -------------------------------------------------------------
-// 🔍 1. SEARCH ENDPOINT: /api/search?url=QUERY or ?q=QUERY
+// 🔍 1. SEARCH ENDPOINT
 // -------------------------------------------------------------
-app.get('/api/search', async (req, res) => {
+app.get('/api/search', (req, res) => {
     const searchQuery = req.query.url || req.query.q;
     if (!searchQuery) {
         return res.status(400).json({ status: "error", message: "Search query required" });
     }
 
-    const poToken = await getPoToken();
-    let extractorArgs = 'youtube:player-client=default,mweb';
-    if (poToken) {
-        extractorArgs += `;po_token=mweb.gvs+${poToken}`;
-    }
-
-    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${extractorArgs}" "ytsearch20:${searchQuery}" -j --flat-playlist`;
+    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${EXTRACTOR_ARGS}" "ytsearch20:${searchQuery}" -j --flat-playlist`;
 
     exec(command, { maxBuffer: 1024 * 1024 * 20 }, (error, stdout, stderr) => {
         if (error) {
@@ -90,19 +75,13 @@ app.get('/api/search', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 🟢 2. INFO ENDPOINT: /api/info?url=VIDEO_URL
+// 🟢 2. INFO ENDPOINT
 // -------------------------------------------------------------
-app.get('/api/info', async (req, res) => {
+app.get('/api/info', (req, res) => {
     const videoUrl = req.query.url;
     if (!videoUrl) return res.status(400).json({ status: false, message: "URL required" });
 
-    const poToken = await getPoToken();
-    let extractorArgs = 'youtube:player-client=default,mweb';
-    if (poToken) {
-        extractorArgs += `;po_token=mweb.gvs+${poToken}`;
-    }
-
-    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${extractorArgs}" -j "${videoUrl}"`;
+    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${EXTRACTOR_ARGS}" -j "${videoUrl}"`;
 
     exec(command, { maxBuffer: 1024 * 1024 * 15 }, (error, stdout, stderr) => {
         if (error) return res.status(500).json({ status: false, error: "Fetch failed", details: stderr });
@@ -157,19 +136,13 @@ app.get('/api/info', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 🟡 3. VIDEO DOWNLOAD ENDPOINT: /api/download?url=VIDEO_URL
+// 🟡 3. VIDEO DOWNLOAD ENDPOINT
 // -------------------------------------------------------------
-app.get('/api/download', async (req, res) => {
+app.get('/api/download', (req, res) => {
     const videoUrl = req.query.url;
     if (!videoUrl) return res.status(400).json({ status: "error", message: "URL required" });
 
-    const poToken = await getPoToken();
-    let extractorArgs = 'youtube:player-client=default,mweb';
-    if (poToken) {
-        extractorArgs += `;po_token=mweb.gvs+${poToken}`;
-    }
-
-    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${extractorArgs}" -g -f "best[ext=mp4]/best" "${videoUrl}"`;
+    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${EXTRACTOR_ARGS}" -g -f "best[ext=mp4]/best" "${videoUrl}"`;
 
     exec(command, (error, stdout) => {
         if (error) return res.status(500).json({ status: "error", message: "Download link fetch failed" });
@@ -183,19 +156,13 @@ app.get('/api/download', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 🔵 4. AUDIO DOWNLOAD ENDPOINT: /api/audio?url=VIDEO_URL
+// 🔵 4. AUDIO DOWNLOAD ENDPOINT
 // -------------------------------------------------------------
-app.get('/api/audio', async (req, res) => {
+app.get('/api/audio', (req, res) => {
     const videoUrl = req.query.url;
     if (!videoUrl) return res.status(400).json({ status: "error", message: "URL required" });
 
-    const poToken = await getPoToken();
-    let extractorArgs = 'youtube:player-client=default,mweb';
-    if (poToken) {
-        extractorArgs += `;po_token=mweb.gvs+${poToken}`;
-    }
-
-    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${extractorArgs}" -g -f "bestaudio/best" "${videoUrl}"`;
+    const command = `yt-dlp --cookies "${COOKIES_PATH}" --extractor-args "${EXTRACTOR_ARGS}" -g -f "bestaudio/best" "${videoUrl}"`;
 
     exec(command, (error, stdout) => {
         if (error) return res.status(500).json({ status: "error", message: "Audio link fetch failed" });
@@ -208,8 +175,6 @@ app.get('/api/audio', async (req, res) => {
     });
 });
 
-// -------------------------------------------------------------
-// SERVER LISTEN
-// -------------------------------------------------------------
-const PORT = process.env.PORT || 8080;
+// PORT Handling (Koyeb uses PORT env or 8000/8080)
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
