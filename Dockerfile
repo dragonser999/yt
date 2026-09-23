@@ -17,5 +17,4 @@ RUN npm install
 COPY . .
 
 EXPOSE 8080
-CMD ["npm", "sta
-rt"]
+CMD ["npm", "start"]
